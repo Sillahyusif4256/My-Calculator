@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Calculator</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --panel:#0b1220;
+      --accent:#2dd4bf;
+      --btn:#1e293b;
+      --btn-hover:#334155;
+      --text:#e6eef8;
+      --muted:#94a3b8;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:linear-gradient(180deg,#071021 0%,#08101a 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      color:var(--text);
+    }
+
+    .calculator{
+      width:320px;
+      max-width:95vw;
+      background:linear-gradient(180deg,var(--panel),#071022);
+      border-radius:12px;
+      padding:18px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.7);
+    }
+
+    .display-wrapper{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-bottom:12px;
+    }
+
+    .previous {
+      color:var(--muted);
+      font-size:0.85rem;
+      min-height:18px;
+      text-align:right;
+      padding-right:6px;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+    }
+
+    .display{
+      height:72px;
+      background:transparent;
+      color:var(--text);
+      font-size:2.1rem;
+      text-align:right;
+      padding:12px 16px;
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      border:1px solid rgba(255,255,255,0.03);
+    }
+
+    .toolbar {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-bottom:8px;
+    }
+
+    .toolbar select, .toolbar label {
+      background:transparent;
+      color:var(--muted);
+      font-size:0.85rem;
+    }
+
+    .toolbar .controls {
+      display:flex;
+      gap:6px;
+      align-items:center;
+      margin-left:auto;
+    }
+
+    .keys{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+    }
+
+    .btn{
+      background:var(--btn);
+      color:var(--text);
+      border: none;
+      padding:16px;
+      font-size:1.05rem;
+      border-radius:8px;
+      cursor:pointer;
+      transition:transform .06s ease, background .12s;
+      box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
+      user-select:none;
+    }
+
+    .btn:active{ transform: translateY(1px) }
+
+    .btn:hover{ background:var(--btn-hover) }
+
+    .btn.operator{
+      background: linear-gradient(180deg,#0f1724,#102030);
+      color:var(--accent);
+      font-weight:600;
+    }
+
+    .btn.function{
+      background: linear-gradient(180deg,#172032,#0f1a28);
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    .btn.equals{
+      background: linear-gradient(180deg,#0ea5a4,#089791);
+      color:#fff;
+      grid-column: 4 / 5;
+      grid-row: 5 / 6;
+      font-weight:700;
+      font-size:1.15rem;
+    }
+
+    .btn.zero{
+      grid-column: 1 / 3;
+    }
+
+    .currency-panel {
+      display:none;
+      gap:6px;
+      align-items:center;
+      margin-top:8px;
+    }
+
+    .currency-panel.active { display:flex; }
+
+    .currency-panel select, .currency-panel button {
+      background:var(--btn);
+      color:var(--text);
+      border-radius:6px;
+      border:1px solid rgba(255,255,255,0.03);
+      padding:8px;
+      font-size:0.95rem;
+    }
+
+    .strange-options {
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .small-muted { color:var(--muted); font-size:0.83rem; }
+
+    @media (min-width:420px){
+      .calculator{ width:380px }
+      .display{ font-size:2.6rem }
+      .btn{ padding:18px; font-size:1.1rem }
+    }
+  </style>
+</head>
+<body>
+  <main class="calculator" role="application" aria-label="Simple calculator">
+    <div class="toolbar">
+      <label for="modeSelect" class="small-muted">Mode:</label>
+      <select id="modeSelect" aria-label="Calculator mode">
+        <option value="calc">Calculator</option>
+        <option value="currency">Currency</option>
+        <option value="strange">Strange</option>
+      </select>
+
+      <div class="controls">
+        <label class="small-muted">Speak</label>
+        <input type="checkbox" id="ttsToggle" title="Read results aloud" />
+      </div>
+    </div>
+
+    <div class="display-wrapper">
+      <div class="previous" id="previous" aria-hidden="true"></div>
+      <div class="display" id="display" aria-live="polite">0</div>
+    </div>
+
+    <div class="currency-panel" id="currencyPanel" aria-hidden="true">
+      <select id="fromCur" aria-label="From currency">
+        <option value="USD">USD</option>
+        <option value="EUR">EUR</option>
+        <option value="JPY">JPY</option>
+        <option value="BTC">BTC</option>
+        <option value="GEM">GEM</option>
+      </select>
+      <span class="small-muted">→</span>
+      <select id="toCur" aria-label="To currency">
+        <option value="EUR">EUR</option>
+        <option value="USD">USD</option>
+        <option value="BTC">BTC</option>
+        <option value="JPY">JPY</option>
+        <option value="GEM">GEM</option>
+      </select>
+      <button id="convertBtn">Convert</button>
+      <button id="ratesBtn" title="Show rates">Rates</button>
+    </div>
+
+    <div class="keys" role="group" aria-label="Calculator buttons">
+      <button type="button" class="btn function" data-action="clear" aria-label="Clear">C</button>
+      <button type="button" class="btn function" data-action="backspace" aria-label="Backspace">⌫</button>
+      <button type="button" class="btn operator" data-value="%" aria-label="Percent">%</button>
+      <button type="button" class="btn operator" data-value="/" aria-label="Divide">÷</button>
+
+      <button type="button" class="btn" data-value="7">7</button>
+      <button type="button" class="btn" data-value="8">8</button>
+      <button type="button" class="btn" data-value="9">9</button>
+      <button type="button" class="btn operator" data-value="*" aria-label="Multiply">×</button>
+
+      <button type="button" class="btn" data-value="4">4</button>
+      <button type="button" class="btn" data-value="5">5</button>
+      <button type="button" class="btn" data-value="6">6</button>
+      <button type="button" class="btn operator" data-value="-" aria-label="Minus">−</button>
+
+      <button type="button" class="btn" data-value="1">1</button>
+      <button type="button" class="btn" data-value="2">2</button>
+      <button type="button" class="btn" data-value="3">3</button>
+      <button type="button" class="btn operator" data-value="+" aria-label="Plus">+</button>
+
+      <button type="button" class="btn zero" data-value="0">0</button>
+      <button type="button" class="btn" data-value=".">.</button>
+      <button type="button" class="btn equals" data-action="equals" aria-label="Equals">=</button>
+    </div>
+
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center;justify-content:flex-end;">
+      <div class="strange-options" id="strangeOptions" style="display:none">
+        <label class="small-muted">Quantum rounding</label><input type="checkbox" id="quantumRounding"/>
+        <label class="small-muted">Emoji money</label><input type="checkbox" id="emojiMoney"/>
+        <label class="small-muted">Reverse digits</label><input type="checkbox" id="reverseDigits"/>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const displayEl = document.getElementById('display');
+      const previousEl = document.getElementById('previous');
+      const keys = document.querySelector('.keys');
+
+      const modeSelect = document.getElementById('modeSelect');
+      const currencyPanel = document.getElementById('currencyPanel');
+      const fromCur = document.getElementById('fromCur');
+      const toCur = document.getElementById('toCur');
+      const convertBtn = document.getElementById('convertBtn');
+      const ratesBtn = document.getElementById('ratesBtn');
+
+      const ttsToggle = document.getElementById('ttsToggle');
+      const strangeOptions = document.getElementById('strangeOptions');
+      const quantumRoundingEl = document.getElementById('quantumRounding');
+      const emojiMoneyEl = document.getElementById('emojiMoney');
+      const reverseDigitsEl = document.getElementById('reverseDigits');
+
+      // Static (intentionally "strange") rates relative to USD
+      const RATES = {
+        USD: 1,
+        EUR: 0.92,
+        JPY: 153,
+        BTC: 1/30000, // 1 USD = 1/30000 BTC (very rough)
+        GEM: 42 // imaginary currency: 1 USD = 42 GEM
+      };
+
+      const EMOJI = {
+        USD: '💵',
+        EUR: '💶',
+        JPY: '💴',
+        BTC: '🪙',
+        GEM: '🔮'
+      };
+
+      let expression = '0';
+      let lastResult = null;
+
+      function updateDisplay(text) {
+        displayEl.textContent = (typeof text === 'undefined') ? expression : text;
+      }
+
+      function setPrevious(text) {
+        previousEl.textContent = text || '';
+      }
+
+      function isOperator(ch) {
+        return ['+','-','*','/','%'].includes(ch);
+      }
+
+      function appendValue(val) {
+        // If we just produced a result and user types a number, start fresh
+        if (lastResult !== null && /^[0-9.]$/.test(val) && /^[0-9]$/.test(expression)) {
+          // keep current as-is
+        }
+
+        if (expression === '0') {
+          if (val === '.') {
+            expression = '0.';
+          } else {
+            expression = val;
+          }
+          updateDisplay();
+          return;
+        }
+
+        const lastToken = expression.split(/([+\-*/%()])/).filter(Boolean).pop();
+
+        if (val === '.') {
+          if (/\./.test(lastToken) && !isOperator(lastToken)) return;
+        }
+
+        expression += val;
+        updateDisplay();
+      }
+
+      function applyOperator(op) {
+        const lastChar = expression.slice(-1);
+        if (isOperator(lastChar)) {
+          expression = expression.slice(0, -1) + op;
+        } else {
+          expression += op;
+        }
+        updateDisplay();
+      }
+
+      function backspace() {
+        if (expression.length <= 1) {
+          expression = '0';
+        } else {
+          expression = expression.slice(0, -1);
+        }
+        updateDisplay();
+      }
+
+      function clearAll() {
+        expression = '0';
+        lastResult = null;
+        setPrevious('');
+        updateDisplay();
+      }
+
+      function sanitizeAndPrepare(expr) {
+        // Convert percentage occurrences like 50% into (50/100)
+        expr = expr.replace(/(\d+(\.\d+)?)%/g, '($1/100)');
+
+        if (!/^[0-9+\-*/().\s]+$/.test(expr)) {
+          return null;
+        }
+        return expr;
+      }
+
+      function applyStrangeTransform(resultStr, currencyTo) {
+        // Reverse digits option
+        if (reverseDigitsEl.checked) {
+          resultStr = resultStr.split('').reverse().join('');
+        }
+
+        // Emoji money option: append currency emoji
+        if (emojiMoneyEl.checked && currencyTo && EMOJI[currencyTo]) {
+          resultStr = resultStr + ' ' + EMOJI[currencyTo];
+        }
+
+        return resultStr;
+      }
+
+      function maybeQuantumRound(value) {
+        if (!quantumRoundingEl.checked) return value;
+        // Strange behavior: 50% chance to round to nearest integer unpredictably
+        if (Math.random() > 0.5) {
+          return Math.round(value);
+        }
+        // or perform "quantum fuzz" small random offset
+        const fuzz = (Math.random() - 0.5) * 0.02 * value;
+        return value + fuzz;
+      }
+
+      function evaluateExpression() {
+        let safeExpr = expression;
+        while (safeExpr.length && isOperator(safeExpr.slice(-1))) {
+          safeExpr = safeExpr.slice(0, -1);
+        }
+        if (!safeExpr.length) return;
+
+        const prepared = sanitizeAndPrepare(safeExpr);
+        if (prepared === null) {
+          displayEl.textContent = 'Error';
+          expression = '0';
+          lastResult = null;
+          return;
+        }
+
+        try {
+          const result = Function('"use strict"; return (' + prepared + ')')();
+          if (!isFinite(result) || Number.isNaN(result)) {
+            displayEl.textContent = 'Error';
+            expression = '0';
+            lastResult = null;
+            return;
+          }
+
+          let out;
+          if (Number.isInteger(result)) {
+            out = String(result);
+          } else {
+            out = Number.parseFloat(result.toPrecision(12)).toString();
+          }
+
+          setPrevious(expression + ' =');
+          expression = out;
+          lastResult = result;
+          updateDisplay();
+
+          // After evaluation, if mode is currency, auto-convert
+          if (modeSelect.value === 'currency') {
+            doCurrencyConvert();
+          } else {
+            maybeSpeak(expression);
+          }
+
+        } catch (err) {
+          displayEl.textContent = 'Error';
+          expression = '0';
+          lastResult = null;
+        }
+      }
+
+      function convertCurrency(amount, from, to) {
+        // Convert from->USD then USD->to
+        const rateFrom = RATES[from];
+        const rateTo = RATES[to];
+        if (!rateFrom || !rateTo) return null;
+        const usd = amount / rateFrom;
+        const converted = usd * rateTo;
+        return converted;
+      }
+
+      function doCurrencyConvert() {
+        // Parse current expression as number (after evaluation we expect a plain number)
+        let num = parseFloat(expression);
+        if (Number.isNaN(num)) {
+          displayEl.textContent = 'Error';
+          return;
+        }
+
+        // Strange twist: if expression contained % then convert is applied to percentage-of
+        // (kept simple: already handled during evaluation)
+
+        const from = fromCur.value;
+        const to = toCur.value;
+        let converted = convertCurrency(num, from, to);
+        if (converted === null) {
+          displayEl.textContent = 'Error';
+          return;
+        }
+
+        // Apply quantum rounding if enabled (strangeness)
+        converted = maybeQuantumRound(converted);
+
+        // Format nicely
+        let out;
+        if (Math.abs(converted) >= 1 && Number.isInteger(converted)) {
+          out = String(converted);
+        } else {
+          out = Number.parseFloat(converted.toPrecision(12)).toString();
+        }
+
+        // Strange additional conversion: if GEM is involved, occasionally send to "other dimension"
+        if ((from === 'GEM' || to === 'GEM') && Math.random() < 0.08) {
+          out = '∞.∞ (portal)';
+        }
+
+        // Apply weird display transforms
+        const finalStr = applyStrangeTransform(out, to);
+
+        setPrevious(`${num} ${from} → ${to}`);
+        updateDisplay(finalStr);
+        expression = String(out); // store numeric form (without emoji/reverse)
+        lastResult = Number(out);
+
+        maybeSpeak(finalStr);
+      }
+
+      convertBtn.addEventListener('click', () => {
+        doCurrencyConvert();
+      });
+
+      ratesBtn.addEventListener('click', () => {
+        // Show a simple rates alert (strange formatting)
+        let txt = 'Strange Rates (relative to USD):\n';
+        Object.keys(RATES).forEach(k => {
+          txt += ` - ${k}: ${RATES[k]}\n`;
+        });
+        alert(txt);
+      });
+
+      function maybeSpeak(text) {
+        if (!ttsToggle.checked) return;
+        if (!('speechSynthesis' in window)) return;
+        let utter = new SpeechSynthesisUtterance(String(text));
+        utter.rate = 0.95;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utter);
+      }
+
+      // Handle button clicks
+      keys.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const value = btn.dataset.value;
+
+        if (action === 'clear') {
+          clearAll();
+          return;
+        }
+        if (action === 'backspace') {
+          backspace();
+          return;
+        }
+        if (action === 'equals') {
+          evaluateExpression();
+          return;
+        }
+
+        if (btn.classList.contains('operator')) {
+          applyOperator(value);
+          return;
+        }
+
+        appendValue(value);
+      });
+
+      // Keyboard support
+      window.addEventListener('keydown', (e) => {
+        if (e.key >= '0' && e.key <= '9') {
+          appendValue(e.key);
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === '.') {
+          appendValue('.');
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'Enter' || e.key === '=') {
+          evaluateExpression();
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'Backspace') {
+          backspace();
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+          clearAll();
+          e.preventDefault();
+          return;
+        }
+
+        if (['+','-','*','/','%'].includes(e.key)) {
+          applyOperator(e.key);
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === '(' || e.key === ')') {
+          appendValue(e.key);
+          e.preventDefault();
+          return;
+        }
+      });
+
+      // Mode switch behavior
+      modeSelect.addEventListener('change', () => {
+        const mode = modeSelect.value;
+        if (mode === 'currency') {
+          currencyPanel.classList.add('active');
+          currencyPanel.setAttribute('aria-hidden', 'false');
+          strangeOptions.style.display = 'none';
+        } else if (mode === 'strange') {
+          currencyPanel.classList.remove('active');
+          currencyPanel.setAttribute('aria-hidden', 'true');
+          strangeOptions.style.display = 'flex';
+        } else {
+          currencyPanel.classList.remove('active');
+          currencyPanel.setAttribute('aria-hidden', 'true');
+          strangeOptions.style.display = 'none';
+        }
+      });
+
+      // Initialize display
+      updateDisplay();
+
+      // Expose a little Easter-egg: double-click display to randomize expression
+      displayEl.addEventListener('dblclick', () => {
+        const seeds = ['314.159', '42', '0.007', '1337', '2.71828'];
+        expression = seeds[Math.floor(Math.random() * seeds.length)];
+        updateDisplay();
+        setPrevious('Quantum seed loaded');
+      });
+    })();
+  </script>
+</body>
+</html>
